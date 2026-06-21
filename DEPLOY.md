@@ -37,6 +37,54 @@ Repo → **Settings → Secrets and variables → Actions → Secrets** → *New
 > Gmail needs an **App Password** (Google Account → Security → 2-Step
 > Verification → App passwords). Outlook/Office365: `smtp.office365.com:587`.
 
+### 2b. Fast path — wire secrets from your local `.env` (GitHub CLI)
+
+If you have the [GitHub CLI](https://cli.github.com) installed and authenticated
+(`gh auth login`), you can push the secrets straight from your machine. Run these
+**from the repo root** (where `.env` lives) **after** adding the remote and
+pushing.
+
+```bash
+# Helper: read ONE value from .env without executing the file (handles '=' in values).
+val() { grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
+
+# --- Live provider keys (pulled from your local .env) ---
+gh secret set FINNHUB_API_KEY        --body "$(val FINNHUB_API_KEY)"
+gh secret set ALPHA_VANTAGE_API_KEY  --body "$(val ALPHA_VANTAGE_API_KEY)"
+gh secret set APCA_API_KEY           --body "$(val APCA_API_KEY)"
+gh secret set APCA_SECRET_KEY        --body "$(val APCA_API_SECRET_KEY)"   # .env name -> workflow name
+
+# --- SMTP / email (NOT in .env — entered interactively so they stay out of shell history) ---
+printf 'smtp.gmail.com' | gh secret set SMTP_HOST
+printf '587'            | gh secret set SMTP_PORT
+gh secret set SMTP_USER        # paste your Gmail address, then press Ctrl-D
+gh secret set SMTP_PASSWORD    # paste the 16-char Gmail App Password, then Ctrl-D
+gh secret set EMAIL_FROM       # your Gmail address, then Ctrl-D
+printf 'contact@quantumquant.trade' | gh secret set EMAIL_TO
+
+# --- Non-secret config as repo Variables ---
+gh variable set REPORT_TZ   --body 'America/New_York'
+gh variable set OE_PROVIDER  --body 'yahoo'
+gh variable set EMAIL_TOP_N  --body '25'
+
+# Verify (names only; values are never shown):
+gh secret list
+gh variable list
+```
+
+> **Note 1 — name mapping:** your `.env` stores the Alpaca secret as
+> `APCA_API_SECRET_KEY`, but the workflow reads `secrets.APCA_SECRET_KEY`; the
+> command above maps it for you.
+>
+> **Note 2 — don't bulk-import:** avoid `gh secret set --env-file .env`. Your
+> `.env` also holds unrelated secrets (OpenAI, Discord, Supabase, OAuth, …) that
+> this report does **not** need — push only the keys above.
+>
+> **Note 3 — quoted values:** the `val` helper returns the raw text after `=`.
+> If any of your `.env` values are wrapped in quotes, define
+> `val() { grep -E "^$1=" .env | head -1 | cut -d= -f2- | tr -d "\"'"; }` instead
+> so surrounding quotes are removed.
+
 ### 3. Set the timezone (Variables, not Secrets)
 Repo → **Settings → Secrets and variables → Actions → Variables**:
 
