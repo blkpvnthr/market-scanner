@@ -1,0 +1,15 @@
+# Core engine requires only the Python standard library.
+# Everything below is OPTIONAL — providers and the dashboard degrade gracefully
+# when these are absent (the engine always falls back to the mock provider).
+
+# Phase 2 — real data providers
+yfinance>=0.2.40        # Yahoo Finance (no API key)
+alpaca-py>=0.20.0       # Alpaca market data (APCA_API_KEY / APCA_SECRET_KEY)
+requests>=2.31.0        # Finnhub / Alpha Vantage REST
+python-dotenv>=1.0.0    # .env loading (a built-in fallback parser is included)
+
+# Phase 3 — dashboard
+streamlit>=1.30.0
+
+# Dev / test
+pytest>=7.4.0
