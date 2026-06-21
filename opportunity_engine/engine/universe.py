@@ -56,8 +56,12 @@ def build_universe(settings: Settings) -> list[UniverseEntry]:
 
     for t in RECENT_IPOS:
         add(t, UniverseTag.RECENT_IPO)
-    for t in UPCOMING_IPOS:
-        add(t, UniverseTag.UPCOMING_IPO)
+    # Upcoming-IPO placeholders are pre-listing names with no live quote (they
+    # 404 on real providers). Only include them in the deterministic mock world;
+    # exclude from live scans so the report contains resolvable tickers only.
+    if (settings.provider or "auto").lower() in {"mock", "auto"}:
+        for t in UPCOMING_IPOS:
+            add(t, UniverseTag.UPCOMING_IPO)
 
     # Deterministic ordering: watchlist names first, then the rest alphabetically.
     watch = [e for e in entries.values() if UniverseTag.WATCHLIST in e.tags]
