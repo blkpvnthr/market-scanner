@@ -189,7 +189,11 @@ def send_report_email(result: ScanResult, settings: Settings,
                            "SMTP not configured (set SMTP_HOST/SMTP_USER/SMTP_PASSWORD/"
                            "EMAIL_FROM/EMAIL_TO)")
 
-    server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=30)
+    try:
+        server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=30)
+    except Exception as exc:  # DNS / connection / timeout
+        return EmailResult(False, settings.email_to, len(candidates), subject,
+                           f"SMTP connect failed: {type(exc).__name__}: {exc}")
     try:
         server.ehlo()
         if settings.smtp_starttls:
@@ -197,6 +201,13 @@ def send_report_email(result: ScanResult, settings: Settings,
             server.ehlo()
         server.login(settings.smtp_user, settings.smtp_password)
         server.send_message(msg)
+    except smtplib.SMTPAuthenticationError as exc:
+        return EmailResult(False, settings.email_to, len(candidates), subject,
+                           f"auth failed ({exc.smtp_code}): check that SMTP_USER is the Gmail "
+                           f"account the App Password belongs to and 2FA is enabled")
+    except smtplib.SMTPException as exc:
+        return EmailResult(False, settings.email_to, len(candidates), subject,
+                           f"SMTP error: {type(exc).__name__}: {exc}")
     finally:
         try:
             server.quit()
