@@ -13,11 +13,22 @@ expectations, catalyst analysis and risk assessments.
 
 ## Why it always runs
 
-Every data provider degrades gracefully. With **no API keys at all**, the engine
-runs end-to-end on a deterministic **mock provider** that generates realistic
-OHLCV series (so technical indicators are genuine) plus plausible fundamentals,
-earnings, IPO, analyst and catalyst data. Add keys later to layer in real data —
-nothing else changes.
+Every data provider degrades gracefully **per field**. With **no API keys at
+all**, the engine runs end-to-end on a deterministic **mock provider** that
+generates realistic OHLCV series (so technical indicators are genuine) plus
+plausible fundamentals, earnings, IPO, analyst and catalyst data. Add keys later
+to layer in real data — nothing else changes.
+
+Every opportunity carries **provenance**: the source of each field
+(`price_source`, `analyst_targets_source`, `catalyst_source`, …) and data-quality
+flags — `LIVE_DATA`, `PARTIAL_LIVE_DATA`, `MOCK_DATA`, `STALE_DATA`,
+`MISSING_ANALYST_TARGETS` — so you always know what's real. A single missing live
+field falls back to the mock for that field only; it never silently replaces the
+whole scan. Inspect it with `validate`:
+
+```bash
+python -m opportunity_engine validate --provider yahoo --tickers ASML,NVDA,RKLB
+```
 
 ## Install
 
@@ -39,9 +50,23 @@ python -m opportunity_engine portfolio       # model portfolios (Phase 4)
 python -m opportunity_engine backfill        # snapshot scores to SQLite
 python -m opportunity_engine dashboard       # Streamlit UI (needs streamlit)
 
+# Data provenance / readiness for specific tickers:
+python -m opportunity_engine validate --provider yahoo --tickers ASML,NVDA,RKLB
+
+# Email the full report (>=20 candidates, ranked best->worst by max return):
+python -m opportunity_engine email --dry-run --html-out preview.html   # preview
+python -m opportunity_engine email                                     # send (needs SMTP)
+
 # Use real data once keys are set (see below):
 python -m opportunity_engine scan --provider yahoo
 ```
+
+### Scheduled delivery (serverless, no laptop required)
+
+Get the report emailed **every weekday at 08:30** via GitHub Actions (free) or
+AWS Lambda — both DST-safe. See **[DEPLOY.md](DEPLOY.md)**. The emailed report is
+always ≥ 20 candidates ranked best→worst by maximum modelled return (upside to
+T3), with CSV + JSON attached.
 
 ## Configuration
 
@@ -55,6 +80,10 @@ Reads `./.env` (or the real environment). All keys are optional:
 | `OE_PROVIDER` | `mock` (default) · `yahoo` · `alpaca` · `finnhub` · `alpha_vantage` |
 | `OE_WATCHLIST` | comma-separated tickers |
 | `OE_TOP_N`, `OE_OUTPUT_DIR`, `OE_SEED` | scan tuning |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | email delivery (`email` command) |
+| `EMAIL_FROM`, `EMAIL_TO`, `EMAIL_TOP_N` | email recipients / size (≥ 20) |
+
+See `.env.example` for a template.
 
 When a selected provider lacks a key/library it transparently falls back to the
 mock, so a scan never fails.
@@ -81,10 +110,15 @@ opportunity_engine/
     ranker.py            # deterministic ranking
     opportunity_report.py# per-opportunity Markdown
     pipeline.py          # orchestrator -> ScanResult
-  reports/writers.py     # daily MD, CSV, JSON, sector/catalyst/IPO/earnings
+    validate.py          # data-source / readiness validation
+  reports/
+    writers.py           # daily MD, CSV, JSON, sector/catalyst/IPO/earnings
+    email.py             # HTML email (>=20 candidates by max return) + SMTP
   portfolio/constructor.py # Phase-4 model portfolios + risk/Sharpe estimates
   storage/cache.py       # TTL cache + SQLite history snapshots
   dash/streamlit_app.py  # Phase-3 dashboard
+  serverless.py          # AWS Lambda / cron entrypoint (run scan + email)
+.github/workflows/daily-report.yml  # weekday 08:30 serverless schedule
 tests/                   # full unit-test suite (stdlib-only, no network)
 ```
 

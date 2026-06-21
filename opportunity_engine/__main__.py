@@ -117,6 +117,37 @@ def cmd_portfolio(args) -> int:
     return 0
 
 
+def cmd_email(args) -> int:
+    from pathlib import Path
+
+    from .reports.email import render_email_html, send_report_email
+
+    settings = _settings_from_args(args)
+    if getattr(args, "to", None):
+        settings.email_to = args.to
+    # Guarantee the emailed report can hold >=20 ranked candidates.
+    settings.email_top_n = max(20, settings.email_top_n)
+    if settings.max_universe < 25:
+        settings.max_universe = 60
+
+    result = run_scan(settings)
+
+    if getattr(args, "html_out", None):
+        Path(args.html_out).write_text(render_email_html(result))
+        print(f"Wrote HTML preview to {args.html_out}")
+
+    res = send_report_email(result, settings, dry_run=bool(getattr(args, "dry_run", False)))
+    status = "SENT" if res.sent else f"NOT SENT ({res.reason})"
+    print(f"[{status}] {res.subject}")
+    print(f"  recipient : {res.recipient or '(none)'}")
+    print(f"  candidates: {res.candidate_count} (ranked best→worst by max return)")
+    if not res.sent and res.reason not in ("dry-run",):
+        print("  Tip: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM, EMAIL_TO "
+              "(or use --dry-run / --html-out to preview).")
+    print(f"\n{DISCLAIMER}")
+    return 0
+
+
 def cmd_validate(args) -> int:
     from .engine.validate import render_validation
 
@@ -154,10 +185,17 @@ def build_parser() -> argparse.ArgumentParser:
         ("backfill", cmd_backfill, "Snapshot scan scores into SQLite history"),
         ("portfolio", cmd_portfolio, "Build model portfolios from the scan"),
         ("validate", cmd_validate, "Validate data sources / readiness for tickers"),
+        ("email", cmd_email, "Scan and email the full report (>=20 candidates)"),
         ("dashboard", cmd_dashboard, "Launch the Streamlit dashboard"),
     ]:
         p = sub.add_parser(name, help=helptext)
         _add_common(p)
+        if name == "email":
+            p.add_argument("--to", default=None, help="override recipient email")
+            p.add_argument("--dry-run", action="store_true",
+                           help="render but do not send")
+            p.add_argument("--html-out", default=None,
+                           help="write the HTML email to a file for preview")
         p.set_defaults(func=fn)
     return parser
 

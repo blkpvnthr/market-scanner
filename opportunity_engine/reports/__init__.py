@@ -13,6 +13,12 @@ from .writers import (
     render_earnings_report,
     render_sector_report,
 )
+from .email import (
+    render_email_html,
+    send_report_email,
+    select_candidates,
+    EmailResult,
+)
 
 __all__ = [
     "write_all_reports",
@@ -23,4 +29,8 @@ __all__ = [
     "render_ipo_report",
     "render_earnings_report",
     "render_sector_report",
+    "render_email_html",
+    "send_report_email",
+    "select_candidates",
+    "EmailResult",
 ]

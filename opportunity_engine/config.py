@@ -90,8 +90,23 @@ class Settings:
     output_dir: str = "reports_out"
     cache_dir: str = ".cache"
 
+    # email delivery (all optional; engine degrades gracefully without them)
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_starttls: bool = True
+    email_from: Optional[str] = None
+    email_to: Optional[str] = None
+    email_top_n: int = 25          # emailed report size (clamped to >=20)
+
     # reproducibility for the mock provider
     seed: int = 7
+
+    @property
+    def has_email(self) -> bool:
+        return bool(self.smtp_host and self.smtp_user and self.smtp_password
+                    and self.email_from and self.email_to)
 
     @property
     def has_alpaca(self) -> bool:
@@ -126,6 +141,25 @@ def load_settings(dotenv_path: Optional[str] = None) -> Settings:
         alpha_vantage_key=os.getenv("ALPHA_VANTAGE_API_KEY"),
         provider=os.getenv("OE_PROVIDER", "auto"),
     )
+
+    # email / SMTP (optional)
+    s.smtp_host = os.getenv("SMTP_HOST")
+    s.smtp_user = os.getenv("SMTP_USER")
+    s.smtp_password = os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_PASS")
+    s.email_from = os.getenv("EMAIL_FROM") or os.getenv("SMTP_USER")
+    s.email_to = os.getenv("EMAIL_TO")
+    if os.getenv("SMTP_PORT"):
+        try:
+            s.smtp_port = int(os.environ["SMTP_PORT"])
+        except ValueError:
+            pass
+    if os.getenv("SMTP_STARTTLS"):
+        s.smtp_starttls = os.environ["SMTP_STARTTLS"].lower() not in {"0", "false", "no"}
+    if os.getenv("EMAIL_TOP_N"):
+        try:
+            s.email_top_n = int(os.environ["EMAIL_TOP_N"])
+        except ValueError:
+            pass
 
     wl = _parse_watchlist(os.getenv("OE_WATCHLIST") or os.getenv("BUFFETT_WATCHLIST"))
     if wl:

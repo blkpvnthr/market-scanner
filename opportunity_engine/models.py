@@ -358,6 +358,13 @@ class Opportunity:
             return self.plan.expected_return_pct
         return (self.analyst.target_mean - self.current_price) / self.current_price * 100.0
 
+    @property
+    def max_return_pct(self) -> float:
+        """Maximum modelled return: upside to the highest target (T3)."""
+        if self.current_price <= 0 or self.plan.target_3 <= 0:
+            return self.plan.expected_return_pct
+        return (self.plan.target_3 - self.current_price) / self.current_price * 100.0
+
     def to_dict(self) -> dict[str, Any]:
         return _to_jsonable(self)
 
