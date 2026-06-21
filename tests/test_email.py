@@ -49,6 +49,20 @@ def test_missing_smtp_is_graceful():
     assert "SMTP" in res.reason
 
 
+def test_cli_email_exit_codes(monkeypatch):
+    """`email --dry-run` exits 0; a real send with no SMTP exits non-zero so a
+    scheduler (GitHub Actions) flags the failure instead of going green."""
+    from opportunity_engine.__main__ import main
+
+    # Ensure no ambient SMTP config makes this attempt a real send.
+    for var in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_PASS"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("OE_PROVIDER", "mock")
+
+    assert main(["email", "--dry-run"]) == 0
+    assert main(["email"]) == 1  # not configured -> non-zero
+
+
 def test_send_path_with_mocked_smtp(monkeypatch):
     """When configured, the send path logs in and dispatches the message."""
     calls = {"login": 0, "send": 0, "starttls": 0}

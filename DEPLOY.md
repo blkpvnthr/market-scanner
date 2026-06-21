@@ -104,6 +104,27 @@ no manual clock changes at DST boundaries.
 Repo → **Actions → Daily Opportunity Report → Run workflow** (manual runs skip
 the time guard and send immediately).
 
+Or trigger and inspect it entirely from the CLI:
+
+```bash
+# Kick off a manual run (skips the 08:30 guard, sends right away):
+gh workflow run daily-report.yml
+
+# List recent runs and grab the newest run's status/id:
+gh run list --workflow=daily-report.yml --limit 5
+
+# Stream/inspect the logs (omit the id to pick interactively, or pass one):
+gh run view --log
+# e.g. a specific run:  gh run view <run-id> --log
+# live progress:        gh run watch
+```
+
+A successful run prints `[SENT] Opportunity Engine — … — Top N candidates by max
+return` in the "Scan and email the report" step. If the send fails (e.g. SMTP not
+configured) the step prints `[NOT SENT (…)]` and **exits non-zero**, so the run
+is marked failed and GitHub notifies you — no silent misses. (A local
+`--dry-run` preview always exits 0.)
+
 > Note: GitHub disables scheduled workflows after ~60 days of repo inactivity —
 > any push (or a manual run) re-arms them.
 

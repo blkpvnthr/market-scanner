@@ -136,16 +136,18 @@ def cmd_email(args) -> int:
         Path(args.html_out).write_text(render_email_html(result))
         print(f"Wrote HTML preview to {args.html_out}")
 
-    res = send_report_email(result, settings, dry_run=bool(getattr(args, "dry_run", False)))
+    dry_run = bool(getattr(args, "dry_run", False))
+    res = send_report_email(result, settings, dry_run=dry_run)
     status = "SENT" if res.sent else f"NOT SENT ({res.reason})"
     print(f"[{status}] {res.subject}")
     print(f"  recipient : {res.recipient or '(none)'}")
     print(f"  candidates: {res.candidate_count} (ranked best→worst by max return)")
-    if not res.sent and res.reason not in ("dry-run",):
+    if not res.sent and not dry_run:
         print("  Tip: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM, EMAIL_TO "
               "(or use --dry-run / --html-out to preview).")
     print(f"\n{DISCLAIMER}")
-    return 0
+    # Exit non-zero on a real (non-dry-run) failure so schedulers flag it.
+    return 0 if (res.sent or dry_run) else 1
 
 
 def cmd_validate(args) -> int:
